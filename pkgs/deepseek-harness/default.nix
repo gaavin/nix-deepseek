@@ -32,7 +32,7 @@ buildNpmPackage (finalAttrs: {
   # whole monorepo test surface, and are dropped from package.json so that
   # `npm ci` still sees a lockfile in sync with it.
   postPatch = ''
-    jq 'del(.devDependencies)' package.json > package.json.new
+    ${lib.getExe jq} 'del(.devDependencies)' package.json > package.json.new
     mv package.json.new package.json
     cp ${./package-lock.json} package-lock.json
   '';
@@ -49,7 +49,6 @@ buildNpmPackage (finalAttrs: {
 
   nativeBuildInputs = [
     autoPatchelfHook
-    jq
     makeWrapper
     python3
   ];
