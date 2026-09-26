@@ -79,8 +79,16 @@ buildNpmPackage (finalAttrs: {
 
   # `dsh plugin` forwards to pnpm inside the profile directory, and the agent's
   # search tooling shells out to rg.
+  #
+  # The web profile's HMR plugin needs node's internal ESM loader. Without
+  # --expose-internals, cordis-plugin-loader falls back to
+  # node-addon-require-builtin, which finds the loader by pattern-matching
+  # node's machine code and does not recognise nixpkgs' node build
+  # ("Unsupported/no-getter"). The flag has to precede the script and is
+  # rejected in NODE_OPTIONS, so the npm hook's wrapper is replaced outright.
   postInstall = ''
-    wrapProgram $out/bin/dsh \
+    makeWrapper ${lib.getExe nodejs} $out/bin/dsh \
+      --add-flags "--expose-internals $out/lib/node_modules/@deepseek-ai/dsh/lib/bin.js" \
       --prefix PATH : ${
         lib.makeBinPath [
           pnpm
