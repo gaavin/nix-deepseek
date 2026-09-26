@@ -60,6 +60,23 @@ buildNpmPackage (finalAttrs: {
   # variants sitting next to the glibc ones are never loaded here.
   autoPatchelfIgnoreMissingDeps = [ "libc.musl-*.so.1" ];
 
+  # libvips-cpp (sharp's prebuilt libvips) must be left byte-for-byte as
+  # shipped. Its .init section sits right after the ELF headers, and when
+  # patchelf grows the headers to add a RUNPATH it relocates .init without
+  # updating DT_INIT, so dlopen() jumps into the rewritten headers and node
+  # segfaults as soon as sharp loads (e.g. `dsh web`). It needs no patching:
+  # its only non-glibc deps, libstdc++ and libgcc_s, are already loaded into
+  # node by the time sharp dlopens it. The hook has no per-file exclude, and
+  # it still has to see the library to point sharp's RPATH at it, so it runs
+  # by hand and the pristine copy is put back afterwards.
+  dontAutoPatchelf = true;
+  postFixup = ''
+    libvips=$(find $out -name 'libvips-cpp.so.*' -print -quit)
+    cp "$libvips" "$TMPDIR/libvips-cpp"
+    autoPatchelf -- $out
+    install -m444 "$TMPDIR/libvips-cpp" "$libvips"
+  '';
+
   # `dsh plugin` forwards to pnpm inside the profile directory, and the agent's
   # search tooling shells out to rg.
   postInstall = ''
